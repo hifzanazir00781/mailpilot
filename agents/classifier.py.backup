@@ -2,7 +2,6 @@
 
 import os
 import sys
-import time
 from pydantic import BaseModel, Field
 from typing import Dict, Any
 
@@ -27,15 +26,15 @@ def classify_email(state: dict) -> dict:
     """
     LangGraph node function. Ye email uthata hai, LLM se classify karwata hai,
     aur state ko update karne ke liye sirf naye fields return karta hai.
-    Includes exponential backoff (2s, 4s, 8s) for 503/429 errors.
     """
     subject = state.get("subject", "")
     body = state.get("body", "")
     
-    # 2. LLM Initialize karein (Gemini 3.6 Flash)
+    # 2. LLM Initialize karein (Gemini 1.5 Flash - fast and free tier friendly)
+    # Ensure GEMINI_API_KEY is in your .env file
     llm = ChatGoogleGenerativeAI(
         model="gemini-3.6-flash",
-        temperature=0.1,
+        temperature=0.1, # Low temperature taake hallucination na ho
         max_retries=3
     )
     
@@ -58,55 +57,40 @@ def classify_email(state: dict) -> dict:
     # 5. Pipeline chain banayen (Prompt -> LLM)
     chain = prompt | structured_llm
     
-    # 6. LLM ko call karein aur response lein (With Exponential Backoff Retry Logic)
-    backoff_delays = [2, 4, 8]
-    
-    for attempt, delay in enumerate(backoff_delays + [0]):
-        try:
-            print(f"🤖 [Classifier Node] Analyzing email with Gemini... (Attempt {attempt + 1})")
-            result: ClassificationResult = chain.invoke({"subject": subject, "body": body})
-            
-            # 7. LangGraph state update karne ke liye dictionary return karein
-            return {
-                "category": result.category,
-                "priority": result.priority,
-                "sentiment": result.sentiment,
-                "extracted_entities": result.extracted_entities,
-                "next_step": "ticket_generator"
-            }
+    # 6. LLM ko call karein aur response lein
+    try:
+        print("🤖 [Classifier Node] Analyzing email with Gemini...")
+        result: ClassificationResult = chain.invoke({"subject": subject, "body": body})
         
-        except Exception as e:
-            error_str = str(e)
-            print(f"❌ Error in classifier on attempt {attempt + 1}: {error_str}")
-            
-            if "503" in error_str or "Unavailable" in error_str or "429" in error_str:
-                if delay > 0:
-                    print(f"⚠️ API Error (503/429). Retrying in {delay} seconds...")
-                    time.sleep(delay)
-                else:
-                    print("❌ Classifier failed after 3 retries due to API limits. Falling back to defaults.")
-                    break
-            else:
-                print("❌ Non-retryable error. Falling back to defaults immediately.")
-                break
-
-    # Fallback mechanism agar LLM fail ho jaye
-    return {
-        "category": "General",
-        "priority": "Medium",
-        "sentiment": "Neutral",
-        "extracted_entities": {},
-        "next_step": "ticket_generator"
-    }
+        # 7. LangGraph state update karne ke liye dictionary return karein
+        return {
+            "category": result.category,
+            "priority": result.priority,
+            "sentiment": result.sentiment,
+            "extracted_entities": result.extracted_entities,
+            "next_step": "ticket_generator" # Agla node decide kar diya
+        }
+    except Exception as e:
+        print(f"❌ Error in classifier: {str(e)}")
+        # Fallback mechanism agar LLM fail ho jaye
+        return {
+            "category": "General",
+            "priority": "Medium",
+            "sentiment": "Neutral",
+            "extracted_entities": {},
+            "next_step": "ticket_generator"
+        }
 
 # Agar is file ko directly run karein to node test kar sakte hain
 if __name__ == "__main__":
     print("Testing Classifier Agent Node...")
     
+    # API Key Check
     if not os.getenv("GEMINI_API_KEY"):
         print("⚠️ ERROR: GEMINI_API_KEY not found! Please create a .env file and add your key.")
         sys.exit(1)
         
+    # Mock State (Email Ingestion step se li gayi hai)
     mock_state = {
         "subject": "Production Server is DOWN!",
         "body": "Hello, our main web server went offline at 8 AM today. Please fix this immediately, we are losing sales! My order number is #99882.",
@@ -120,6 +104,7 @@ if __name__ == "__main__":
     print("\n--- Input State ---")
     print(f"Subject: {mock_state['subject']}")
     
+    # Run Node
     updates = classify_email(mock_state)
     
     print("\n--- Output State Updates (JSON Structured) ---")

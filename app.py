@@ -171,7 +171,11 @@ def main():
     if not st.session_state.logged_in:
         auth_page()
     else:
-        main_app()
+        # TEMP FIX TO TEST DASHBOARD
+        import importlib.util
+        spec = importlib.util.spec_from_file_location("dashboard", "ui/pages/1_Dashboard.py")
+        dashboard = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(dashboard)
 
 if __name__ == "__main__":
     main()

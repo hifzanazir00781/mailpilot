@@ -4,7 +4,6 @@ import os
 import sys
 import random
 import string
-import time
 from pydantic import BaseModel, Field
 
 # Root directory ko system path mein add karna
@@ -33,7 +32,6 @@ def generate_ticket(state: dict) -> dict:
     """
     LangGraph node function. Ye email aur classification uthata hai, 
     LLM se summary banwata hai, DB mein ticket save karta hai, aur state update karta hai.
-    Includes exponential backoff (2s, 4s, 8s) for 503/429 errors.
     """
     subject = state.get("subject", "")
     body = state.get("body", "")
@@ -41,6 +39,8 @@ def generate_ticket(state: dict) -> dict:
     priority = state.get("priority", "Medium")
     tenant_id = int(state.get("tenant_id", 0))
     email_id = int(state.get("email_id", 0))
+
+    print("🤖 [Ticket Generator Node] Analyzing issue to suggest actions...")
 
     # 2. LLM Initialize karein (using gemini-3.6-flash as requested)
     llm = ChatGoogleGenerativeAI(
@@ -63,57 +63,26 @@ def generate_ticket(state: dict) -> dict:
     
     chain = prompt | structured_llm
     
-    # Exponential backoff retry logic
-    backoff_delays = [2, 4, 8]
-    result = None
-    
-    for attempt, delay in enumerate(backoff_delays + [0]):
-        try:
-            print(f"🤖 [Ticket Generator Node] Analyzing issue to suggest actions... (Attempt {attempt + 1})")
-            result = chain.invoke({
-                "category": category, 
-                "priority": priority, 
-                "subject": subject, 
-                "body": body
-            })
-            break # Success, exit retry loop
-            
-        except Exception as e:
-            error_str = str(e)
-            print(f"❌ Error in ticket generator on attempt {attempt + 1}: {error_str}")
-            
-            if "503" in error_str or "Unavailable" in error_str or "429" in error_str:
-                if delay > 0:
-                    print(f"⚠️ API Error (503/429). Retrying in {delay} seconds...")
-                    time.sleep(delay)
-                else:
-                    print("❌ Ticket generator failed after 3 retries due to API limits.")
-            else:
-                print("❌ Non-retryable error encountered.")
-                break
-
-    # If result is still None after retries/errors, trigger fallback
-    if not result:
-        print("⚠️ Falling back to default error response for ticket generation.")
-        return {
-            "ticket_id_str": "ERROR",
-            "summary": "Summary unavailable",
-            "suggested_action": "Manual review required",
-            "next_step": "end"
-        }
-
     try:
+        # LLM ko call kar ke smart insights lein
+        result: TicketAction = chain.invoke({
+            "category": category, 
+            "priority": priority, 
+            "subject": subject, 
+            "body": body
+        })
+        
         ticket_id_str = generate_ticket_id()
         
-        # 4. Database Operations: Ticket create karein aur Email ko link karein (Including summary column)
+        # 4. Database Operations: Ticket create karein aur Email ko link karein
         with get_db_connection() as conn:
             cursor = conn.cursor()
             
-            # Insert new ticket with summary column included
+            # Insert new ticket
             cursor.execute("""
-                INSERT INTO tickets (tenant_id, ticket_id_str, subject, category, priority, status, summary, suggested_action)
-                VALUES (?, ?, ?, ?, ?, 'Pending', ?, ?)
-            """, (tenant_id, ticket_id_str, subject, category, priority, result.summary, result.suggested_action))
+                INSERT INTO tickets (tenant_id, ticket_id_str, subject, category, priority, status, suggested_action)
+                VALUES (?, ?, ?, ?, ?, 'Pending', ?)
+            """, (tenant_id, ticket_id_str, subject, category, priority, result.suggested_action))
             
             # Update the original email to link it to this ticket
             cursor.execute("""
@@ -133,12 +102,12 @@ def generate_ticket(state: dict) -> dict:
             "next_step": "reply_drafter" # Agla node decide kar diya (Phase 4)
         }
         
-    except Exception as db_err:
-        print(f"❌ Database error in ticket generator: {str(db_err)}")
+    except Exception as e:
+        print(f"❌ Error in ticket generator: {str(e)}")
         return {
             "ticket_id_str": "ERROR",
-            "summary": "Summary unavailable",
-            "suggested_action": "Manual review required",
+            "summary": "Error generating summary.",
+            "suggested_action": "Manual review required.",
             "next_step": "end"
         }
 
@@ -152,8 +121,8 @@ if __name__ == "__main__":
         
     # Mock State (Classifier ke output ke baad ka state)
     mock_state = {
-        "tenant_id": 1, # Assuming tenant 1 from Phase 1
-        "email_id": 1,  # Assuming email 1 from our ingest script
+        "tenant_id": "1", # Assuming tenant 1 from Phase 1
+        "email_id": "1",  # Assuming email 1 from our ingest script
         "subject": "Production Server is DOWN!",
         "body": "Hello, our main web server went offline at 8 AM today. Please fix this immediately, we are losing sales! My order number is #99882.",
         "category": "Technical Support",
