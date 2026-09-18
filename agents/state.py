@@ -24,6 +24,11 @@ class CopilotState(TypedDict):
     sentiment: str             # e.g., "Frustrated", "Neutral", "Satisfied"
     extracted_entities: Dict[str, Any]  # e.g., {"order_number": "12345", "company": "Acme Corp"}
     
+        # 3b. Ticket Generator Agent Outputs
+    ticket_id_str: str
+    summary: str
+    suggested_action: str
+    
     # 4. LangGraph message history (Crucial for agent memory/reasoning)
     messages: Annotated[list, add_messages]
     
