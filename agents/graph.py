@@ -10,6 +10,7 @@ from langgraph.graph import StateGraph, END
 from agents.state import CopilotState
 from agents.classifier import classify_email
 from agents.ticket_generator import generate_ticket
+from agents.reply_drafter import draft_reply
 from integrations.email_ingest import ingest_mock_email, get_unprocessed_emails
 
 def build_graph():
@@ -20,21 +21,20 @@ def build_graph():
     # 1. StateGraph initialize karein CopilotState definition ke sath
     workflow = StateGraph(CopilotState)
     
-    # 2. Nodes add karein (Har node ek standalone Python function hai jo humne pehle banaya)
+    # 2. Nodes add karein (Har node ek standalone Python function hai jo humne banaya hai)
     workflow.add_node("classifier", classify_email)
     workflow.add_node("ticket_generator", generate_ticket)
+    workflow.add_node("reply_drafter", draft_reply)
     
     # 3. Graph ka start point (Entry point) define karein
     workflow.set_entry_point("classifier")
     
-    # 4. Edges connect karein (Classifier se nikal kar sidha Ticket Generator par jaye)
+    # 4. Edges connect karein (Classifier -> Ticket Generator -> Reply Drafter -> END)
     workflow.add_edge("classifier", "ticket_generator")
+    workflow.add_edge("ticket_generator", "reply_drafter")
+    workflow.add_edge("reply_drafter", END)
     
-    # 5. Ticket generator ke baad abhi graph END ho jayega 
-    # (Phase 4/6 mein hum yahan reply_drafter aur escalation add karenge)
-    workflow.add_edge("ticket_generator", END)
-    
-    # 6. Graph ko compile karein taake run hone ke kabil ho jaye
+    # 5. Graph ko compile karein taake run hone ke kabil ho jaye
     app = workflow.compile()
     return app
 
@@ -52,7 +52,7 @@ def run_email_pipeline(email_state: dict):
 
 # Agar is file ko directly run karein to end-to-end pipeline test kar sakte hain
 if __name__ == "__main__":
-    print("Testing LangGraph Orchestration (End-to-End)...")
+    print("Testing LangGraph Orchestration (End-to-End with RAG Reply Drafter)...")
     
     # API Key Check
     if not os.getenv("GEMINI_API_KEY"):
@@ -65,8 +65,8 @@ if __name__ == "__main__":
     # --- STEP 1: Nayi email ingest karein ---
     print("\n--- Step 1: Ingesting New Test Email ---")
     sender = "finance@company.com"
-    subject = "Invoice payment failed for October"
-    body = "Hi, I tried to pay the invoice #INV-7781 using the portal but it keeps giving me a 500 Internal Server Error. Please look into this, the payment is due today."
+    subject = "Question regarding refund policy"
+    body = "Hi, I tried to request a refund for subscription #INV-7781 last week but I want to know if I am eligible and what the process is."
     
     ingest_res = ingest_mock_email(test_tenant, sender, subject, body)
     
@@ -87,8 +87,7 @@ if __name__ == "__main__":
     target_email = unprocessed[-1] 
     
     # --- STEP 3: LangGraph Pipeline Run Karein ---
-    print("\n--- Step 3: Running LangGraph Pipeline ---")
-    # Ye target_email pehle classifier mein jayegi, phir wahan se ticket_generator mein jayegi
+    print("\n--- Step 3: Running LangGraph Pipeline (Classifier -> Ticket -> Reply Drafter) ---")
     final_result = run_email_pipeline(target_email)
     
     print("\n🎉 --- Final Output State (End-to-End Success) --- 🎉")
@@ -98,5 +97,8 @@ if __name__ == "__main__":
     print(f"Summary:          {final_result.get('summary')}")
     print(f"Suggested Action: {final_result.get('suggested_action')}")
     print(f"Entities:         {final_result.get('extracted_entities')}")
+    print(f"Sources Used:     {final_result.get('sources_used')}")
+    print("-----------------------------------------------------")
+    print(f"Draft Reply:\n{final_result.get('draft_reply')}")
     print("-----------------------------------------------------")
     print("Pipeline orchestrated successfully!")

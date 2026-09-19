@@ -1,11 +1,12 @@
-# state.py
-from typing import TypedDict, Annotated, Dict, Any
+# File: agents/state.py
+
+from typing import TypedDict, Annotated, Dict, Any, List
 from langgraph.graph.message import add_messages
 
 class CopilotState(TypedDict):
     """
     Represents the state of our AI Ops Copilot graph as an email moves 
-    through ingestion, classification, and routing.
+    through ingestion, classification, ticket generation, and RAG reply drafting.
     """
     # 1. Tenant/Context (Bridged from Phase 1)
     tenant_id: str
@@ -20,14 +21,18 @@ class CopilotState(TypedDict):
     
     # 3. Classifier Agent Outputs (What the LLM will fill in)
     category: str              # e.g., "Technical Support", "Billing", "Sales Inquiry"
-    priority: str              # e.g., "High", "Medium", "Low"
+    priority: str              # e.g., "Critical", "High", "Medium", "Low"
     sentiment: str             # e.g., "Frustrated", "Neutral", "Satisfied"
     extracted_entities: Dict[str, Any]  # e.g., {"order_number": "12345", "company": "Acme Corp"}
     
-        # 3b. Ticket Generator Agent Outputs
+    # 3b. Ticket Generator Agent Outputs
     ticket_id_str: str
     summary: str
     suggested_action: str
+    
+    # 3c. Reply Drafter Agent Outputs (New Phase 4 RAG additions)
+    draft_reply: str
+    sources_used: List[str]
     
     # 4. LangGraph message history (Crucial for agent memory/reasoning)
     messages: Annotated[list, add_messages]
