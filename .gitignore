@@ -28,3 +28,7 @@ Thumbs.db
 *.backup
 *.bak
 *.old
+
+# ChromaDB data
+chroma_db/
+data/chroma/
