@@ -156,10 +156,10 @@ def main_app():
     pages = {
         "MailPilot Operations": [
             st.Page("ui/pages/1_Dashboard.py", title="Dashboard", icon="📊"),
+            st.Page("ui/pages/3_Knowledge_Base.py", title="Knowledge Base", icon="📚"),
         ],
         "Coming Soon": [
             st.Page("ui/pages/stub_chatbot.py", title="Chatbot", icon="💬"),
-            st.Page("ui/pages/stub_kb.py", title="Knowledge Base", icon="📚"),
             st.Page("ui/pages/stub_settings.py", title="Settings", icon="⚙️"),
         ]
     }
