@@ -131,7 +131,7 @@ def auth_page():
 
 def main_app():
     """
-    Main application UI jo sirf logged-in users ko dikhega.
+    Main application UI jo sirf logged-in users ko dikhega, powered by st.navigation.
     """
     user = st.session_state.user_data
     
@@ -148,21 +148,24 @@ def main_app():
         st.write(f"🔑 Role: {user['role'].capitalize()}")
         st.divider()
         
-        # Navigation placeholders for upcoming phases
-        st.button("📊 Dashboard (Phase 3)", disabled=True)
-        st.button("🤖 Chatbot (Phase 5)", disabled=True)
-        st.button("📚 Knowledge Base (Phase 4)", disabled=True)
+        if st.button("Logout", use_container_width=True):
+            logout()
         st.divider()
         
-        if st.button("Logout"):
-            logout()
-            
-    # Main content area
-    st.title(f"Welcome to your Workspace, {user['tenant_name']}! 👋")
-    st.write(f"You are logged in as a **{user['tenant_type'].capitalize()}** account.")
-    st.write("Your tenant ID is:", user['tenant_id'], "(This proves data is isolated!)")
+    # Native Streamlit Sidebar Navigation
+    pages = {
+        "MailPilot Operations": [
+            st.Page("ui/pages/1_Dashboard.py", title="Dashboard", icon="📊"),
+        ],
+        "Coming Soon": [
+            st.Page("ui/pages/stub_chatbot.py", title="Chatbot", icon="💬"),
+            st.Page("ui/pages/stub_kb.py", title="Knowledge Base", icon="📚"),
+            st.Page("ui/pages/stub_settings.py", title="Settings", icon="⚙️"),
+        ]
+    }
     
-    st.info("Phase 1 Complete! The Dashboard and Email Ingestion will appear here in the next phases.")
+    pg = st.navigation(pages)
+    pg.run()
 
 # Application flow control
 def main():
@@ -171,11 +174,7 @@ def main():
     if not st.session_state.logged_in:
         auth_page()
     else:
-        # TEMP FIX TO TEST DASHBOARD
-        import importlib.util
-        spec = importlib.util.spec_from_file_location("dashboard", "ui/pages/1_Dashboard.py")
-        dashboard = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(dashboard)
+        main_app()
 
 if __name__ == "__main__":
     main()
