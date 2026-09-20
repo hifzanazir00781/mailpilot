@@ -153,13 +153,13 @@ def main_app():
         st.divider()
         
     # Native Streamlit Sidebar Navigation
-    pages = {
+        pages = {
         "MailPilot Operations": [
             st.Page("ui/pages/1_Dashboard.py", title="Dashboard", icon="📊"),
+            st.Page("ui/pages/2_Chatbot.py", title="Chatbot", icon="💬"),
             st.Page("ui/pages/3_Knowledge_Base.py", title="Knowledge Base", icon="📚"),
         ],
         "Coming Soon": [
-            st.Page("ui/pages/stub_chatbot.py", title="Chatbot", icon="💬"),
             st.Page("ui/pages/stub_settings.py", title="Settings", icon="⚙️"),
         ]
     }
