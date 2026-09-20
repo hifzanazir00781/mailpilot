@@ -59,29 +59,29 @@ User → Streamlit UI → LangGraph Pipeline → Gemini 3.6 Flash → SQLite + C
 
 ## 📂 Project Structure
 
+```
 mailpilot/
-├── app.py                    (Main entry - login/register)
-├── agents/                   (AI agents)
-│   ├── classifier.py         (Email classification)
-│   ├── ticket_generator.py   (Ticket creation)
-│   ├── reply_drafter.py      (RAG-based reply drafting)
-│   ├── rag_agent.py          (Vector retrieval)
-│   ├── chatbot_agent.py      (Chatbot logic)
-│   ├── state.py              (LangGraph state)
-│   └── graph.py              (Orchestration pipeline)
-├── backend/                  (Backend logic)
-│   ├── db.py                 (Database)
-│   ├── auth.py               (Login/Register)
-│   ├── security.py           (Password hashing)
-│   └── vector_store.py       (ChromaDB setup)
-├── ui/pages/                 (Streamlit pages)
+├── app.py                    # Main entry (login/register)
+├── agents/                   # AI agents
+│   ├── classifier.py         # Email classification
+│   ├── ticket_generator.py   # Ticket creation
+│   ├── reply_drafter.py      # RAG-based reply drafting
+│   ├── rag_agent.py          # Vector retrieval
+│   ├── chatbot_agent.py      # Chatbot logic
+│   ├── state.py              # LangGraph state
+│   └── graph.py              # Orchestration pipeline
+├── backend/                  # Backend logic
+│   ├── db.py                 # Database
+│   ├── auth.py               # Login/Register
+│   ├── security.py           # Password hashing
+│   └── vector_store.py       # ChromaDB setup
+├── ui/pages/                 # Streamlit pages
 │   ├── 1_Dashboard.py
 │   ├── 2_Chatbot.py
 │   └── 3_Knowledge_Base.py
 └── integrations/
     └── email_ingest.py
-
----
+```
 
 ## 📊 Dataset / Data Sources
 
